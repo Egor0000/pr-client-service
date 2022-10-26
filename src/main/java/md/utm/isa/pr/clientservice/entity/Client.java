@@ -2,9 +2,7 @@ package md.utm.isa.pr.clientservice.entity;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import md.utm.isa.pr.clientservice.dto.ClientOrderDto;
-import md.utm.isa.pr.clientservice.dto.Food;
-import md.utm.isa.pr.clientservice.dto.OrderDto;
+import md.utm.isa.pr.clientservice.dto.*;
 import md.utm.isa.pr.clientservice.service.ClientService;
 import md.utm.isa.pr.clientservice.service.RestaurantMenu;
 import md.utm.isa.pr.clientservice.util.OrderUtil;
@@ -32,7 +30,7 @@ public class Client implements Runnable {
                 }
 
                 clientService.postOrder(clientOrder);
-                Thread.sleep(ThreadLocalRandom.current().nextInt(10, 50)* 100L);
+                Thread.sleep(ThreadLocalRandom.current().nextInt(100, 500)* 100L);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -42,10 +40,12 @@ public class Client implements Runnable {
     private OrderDto generateOrder() {
         OrderDto orderDto = new OrderDto();
         orderDto.setOrderId(OrderUtil.getNextOrderId());
-        orderDto.setRestaurantId(ThreadLocalRandom.current().nextLong(0, 2));
+        MenuDto menu = restaurantMenu.getMenu();
 
-        //todo what is the max number of items?
-        List<Food> randomList = restaurantMenu.getRandomFoods(ThreadLocalRandom.current().nextInt(1, 6));
+        RestaurantDto restaurant = menu.getRestaurantData().get(ThreadLocalRandom.current().nextInt(0, menu.getRestaurants().intValue()));
+        orderDto.setRestaurantId(restaurant.getRestaurantId());
+
+        List<Food> randomList = restaurantMenu.getRandomFoods(restaurant, ThreadLocalRandom.current().nextInt(1, 6));
 
         orderDto.setItems(randomList.stream()
                 .map(Food::getId)
@@ -53,7 +53,7 @@ public class Client implements Runnable {
 
         orderDto.setPriority(ThreadLocalRandom.current().nextInt(1, 6));
 
-        orderDto.setMaxWait(restaurantMenu.getMaxPreparationTime(randomList).getPreparationTime()*1.3);
+        orderDto.setMaxWait(restaurantMenu.getMaxPreparationTime(randomList).getPreparationTime()*1.8);
         orderDto.setCreatedTime(System.currentTimeMillis());
 
         return orderDto;

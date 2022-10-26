@@ -41,9 +41,9 @@ public class ClientServiceImpl implements ClientService {
 
     private final RestaurantMenu restaurantMenu;
 
-    @Value("${client-service..time-unit}")
+    @Value("${client-service.time-unit}")
     private Long timeUnit;
-    @Value("${client-service..time-duration}")
+    @Value("${client-service.time-duration}")
     private Long timeDuration;
 
     private String path = "/order/";
@@ -80,14 +80,14 @@ public class ClientServiceImpl implements ClientService {
     public String postOrder(ClientOrderDto order) {
         log.info("Sending order {}", order);
         if (webClient != null) {
-            Mono<String> response = webClient.post()
+            webClient.post()
                     .uri(String.format("%s:%s%s", address, port, path))
                     .body(BodyInserters.fromValue(order))
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .bodyToMono(String.class);
-
-            return response.block();
+                    .bodyToMono(String.class)
+                    .doOnNext(val -> log.info("Received response from food service {}", val ))
+                    .block();
         }
         return null;
     }
