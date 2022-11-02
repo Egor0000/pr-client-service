@@ -6,6 +6,7 @@ import md.utm.isa.pr.clientservice.dto.MenuDto;
 import md.utm.isa.pr.clientservice.dto.RestaurantDto;
 
 import java.util.List;
+import java.util.Map;
 
 public interface RestaurantMenu {
     MenuDto getMenu();
@@ -14,5 +15,5 @@ public interface RestaurantMenu {
 
     List<Food> getRandomFoods(RestaurantDto restaurant, int nr);
 
-
+    Map<Long, RestaurantDto> getRestaurants();
 }
