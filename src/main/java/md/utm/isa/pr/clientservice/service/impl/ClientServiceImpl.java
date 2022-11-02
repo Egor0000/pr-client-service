@@ -1,9 +1,7 @@
 package md.utm.isa.pr.clientservice.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
-import md.utm.isa.pr.clientservice.dto.ClientOrderDto;
-import md.utm.isa.pr.clientservice.dto.Food;
-import md.utm.isa.pr.clientservice.dto.OrderDto;
+import md.utm.isa.pr.clientservice.dto.*;
 import md.utm.isa.pr.clientservice.entity.Client;
 import md.utm.isa.pr.clientservice.service.ClientService;
 import md.utm.isa.pr.clientservice.service.RestaurantMenu;
@@ -22,6 +20,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -50,6 +49,8 @@ public class ClientServiceImpl implements ClientService {
     private WebClient webClient;
     private List<Food> foods = new ArrayList<>();
 
+    private int nextId = 0;
+
 
     private ConcurrentMap<String, Thread> clientList = new ConcurrentHashMap<>();
 
@@ -77,26 +78,66 @@ public class ClientServiceImpl implements ClientService {
 
     }
     @Override
-    public String postOrder(ClientOrderDto order) {
+    public ResponseClientOrderDto postOrder(ClientOrderDto order) {
         log.info("Sending order {}", order);
         if (webClient != null) {
-            webClient.post()
+            ResponseClientOrderDto responseClientOrderDto = webClient.post()
                     .uri(String.format("%s:%s%s", address, port, path))
                     .body(BodyInserters.fromValue(order))
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .bodyToMono(String.class)
+                    .bodyToMono(ResponseClientOrderDto.class)
                     .doOnNext(val -> log.info("Received response from food service {}", val ))
+                    .block();
+            return responseClientOrderDto;
+        }
+        return null;
+    }
+
+    @Override
+    public void postRating(RestaurantRating rating) {
+        try {
+            webClient.post()
+                    .uri(String.format("%s:%s%s", address, port, "/rating"))
+                    .body(BodyInserters.fromValue(rating))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @Override
+    public PreparedOrderDto getPreparedOrder(ResponseOrderDto orderDto) {
+        if (webClient != null) {
+            return webClient.get().uri(String.format("http://%s%s?id=%s", orderDto.getRestaurantAddress(), "/v2/order/", orderDto.getOrderId()))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(PreparedOrderDto.class)
                     .block();
         }
         return null;
     }
 
+    @Override
+    public void createNextThread(String name) {
+        clientList.remove(name);
+
+        String nextName = String.format("Client_%s", nextId);
+        Thread r = new Thread(new Client(this, restaurantMenu, nextName, nextId));
+        clientList.put(nextName, r);
+        r.start();
+        nextId++;
+    }
+
     private void startClients() {
         for (int i = 0; i < Integer.parseInt(clientCount); i++) {
-            Thread r = new Thread(new Client(this, restaurantMenu, i));
-            clientList.put(String.format("Client_%s", i), r);
+            String name = String.format("Client_%s", i);
+            Thread r = new Thread(new Client(this, restaurantMenu, name, i));
+            clientList.put(name, r);
             r.start();
+            nextId = i++;
         }
     }
 }

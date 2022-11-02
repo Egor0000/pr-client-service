@@ -10,10 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -27,6 +24,8 @@ public class RestaurantMenuImpl implements RestaurantMenu {
 
     private WebClient webClient;
 
+    private Map<Long, RestaurantDto> restaurants = new HashMap<>();
+
     @PostConstruct
     private void init() {
         webClient = WebClient.create();
@@ -35,10 +34,14 @@ public class RestaurantMenuImpl implements RestaurantMenu {
     @Override
     public MenuDto getMenu() {
         try {
-            return webClient.get().uri(String.format("%s:%s%s", foodServiceAddress, foodOrderingPort, "/menu"))
+            MenuDto menu =  webClient.get().uri(String.format("%s:%s%s", foodServiceAddress, foodOrderingPort, "/menu"))
                     .retrieve()
                     .bodyToMono(MenuDto.class)
                     .block();
+            if (menu !=null) {
+                updateRestaurantList(menu);
+            }
+            return menu;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -63,5 +66,16 @@ public class RestaurantMenuImpl implements RestaurantMenu {
         }
 
         return randomizedFoodList;
+    }
+
+    @Override
+    public Map<Long, RestaurantDto> getRestaurants() {
+        return restaurants;
+    }
+
+    private void updateRestaurantList(MenuDto menu) {
+        for (RestaurantDto restaurant: menu.getRestaurantData()) {
+            restaurants.put(restaurant.getRestaurantId(), restaurant);
+        }
     }
 }
